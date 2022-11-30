@@ -147,8 +147,8 @@ fn remote_to_url(remote: &Remote) -> Result<String, String> {
             }
 
             let mut credentials = String::new();
-            if url.has_authority() {
-               credentials = format!("{}:{}@", url.username(), url.password().unwrap());
+            if url.password().is_some() && url.has_authority()  {
+                credentials = format!("{}:{}@", url.username(), url.password().unwrap());
             }
             Ok(String::from(format!("https://{}{}", credentials, host)))
         },
