@@ -150,7 +150,12 @@ fn remote_to_url(remote: &Remote) -> Result<String, String> {
             if url.password().is_some() && url.has_authority()  {
                 credentials = format!("{}:{}@", url.username(), url.password().unwrap());
             }
-            Ok(String::from(format!("https://{}{}", credentials, host)))
+
+            let mut path = url.path();
+            if path.ends_with(".git") {
+                path = &path[..path.len() - 4]
+            }
+            Ok(String::from(format!("https://{}{}/{}", credentials, host, path)))
         },
         Ok(_) => return Err(String::from("Protocol not supported")),
         Err(_) => format_error,
