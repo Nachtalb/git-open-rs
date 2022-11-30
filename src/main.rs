@@ -93,13 +93,18 @@ fn main() {
 }
 
 fn resolve_ssh_host(host: String) -> String {
-    let config_path = Path::new("~/.ssh/config");
-    if !config_path.exists() {
-        let config_path = Path::new("/etc/ssh/ssh_config");
-        if !config_path.exists() {
-            return host
-        }
-    }
+    let config_path = match absolutize_and_expand("~/.ssh/config") {
+        Ok(path) if !path.exists() => {
+            match absolutize_and_expand("/etc/ssh/ssh_config") {
+                Ok(path) if !path.exists() => return host,
+                Ok(path) => path,
+                Err(_) => return host
+            }
+        },
+        Ok(path) => path,
+        Err(_) => return host
+    };
+
 
     let mut reader = match File::open(&config_path) {
         Ok(file) => BufReader::new(file),
