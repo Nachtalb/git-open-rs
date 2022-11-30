@@ -1,7 +1,7 @@
 use std::{env::current_dir, process::exit, io::BufReader, path::Path};
-use url::Url;
 use ssh2_config::SshConfig;
 use std::fs::File;
+use git_url_parse::normalize_url;
 
 use git2::{Repository, Remote};
 
@@ -37,9 +37,10 @@ fn main() {
 
     match remote_to_url(&remote) {
         Ok(remote_url) => {
-            if webbrowser::open(&remote_url).is_err() {
-                println!("Could not open webbrowser. Here is the URL: {}", remote_url);
-            }
+            match webbrowser::open(&remote_url) {
+                Ok(_) => println!("Opening url {remote_url}"),
+                Err(_) => println!("Could not open webbrowser. Here is the URL: {}", remote_url)
+            };
         },
         Err(err) => {
             println!("{}: {}", err, remote.url().unwrap().to_string());
@@ -81,19 +82,15 @@ fn resolve_ssh_host(host: String) -> String {
 
 fn remote_to_url(remote: &Remote) -> Result<String, String> {
     let format_error = Err(String::from("Don't know remote format"));
-
     let remote_url = match remote.url() {
         Some(url) if Path::new(url).exists() => return Err(String::from("Remote is a local path")),
-        Some(url) if !url.contains("://") => format!("ssh://{url}"),
-        Some(url) => url.to_string(),
-        None => return format_error
+        None => return format_error,
+        Some(url) => normalize_url(url),
     };
 
-    println!("{:#?}, {:#?}", remote_url, Url::parse(&remote_url));
-
-    match Url::parse(&remote_url) {
+    match remote_url {
         Ok(url) if ["http", "https"].contains(&url.scheme()) => {
-            Ok(remote_url)
+            Ok(String::from(url))
         },
         Ok(url) if ["ssh", "git", ""].contains(&url.scheme()) && url.has_host() => {
             let mut host = url.host().unwrap().to_string();
