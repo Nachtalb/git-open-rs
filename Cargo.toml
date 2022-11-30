@@ -12,3 +12,5 @@ ssh2-config = "0.1.3"
 webbrowser = "0.8.2"
 git-url-parse = "0.4.4"
 clap = { version = "4.0.29", features = ["derive"] }
+path-absolutize = "3.0.14"
+shellexpand = "2.1.2"

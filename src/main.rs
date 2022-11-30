@@ -1,12 +1,13 @@
-use std::{env::current_dir, process::exit, io::BufReader, path::{Path, PathBuf}};
+use std::{env::current_dir, process::exit, io::BufReader, path::{Path, PathBuf}, ffi::OsStr};
 use ssh2_config::SshConfig;
 use std::fs::File;
 use git_url_parse::normalize_url;
 use clap::Parser;
+use path_absolutize::{self, Absolutize};
 
 use git2::{Repository, Remote};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 struct Args {
     #[arg(short, long, required = false, help = "Commit hash")]
     commit: Option<String>,
@@ -15,21 +16,48 @@ struct Args {
     no_branch: bool,
 
     #[arg(short, long, required = false, help = "Path of the git repository")]
-    path: PathBuf,
+    path: Option<PathBuf>,
+}
+
+fn absolutize_and_expand<P: AsRef<OsStr>>(path: P) -> Result<PathBuf, String>{
+    let path = match shellexpand::env(path.as_ref().to_str().unwrap()) {
+        Ok(path) => path.into_owned(),
+        Err(err) => return Err(format!("{}", err)),
+    };
+    Ok(Path::new(&path).absolutize().unwrap().into_owned())
 }
 
 fn main() {
     let arguments = Args::parse();
+    let git_path = match arguments.path {
+        Some(path) => {
+            let path: PathBuf = match absolutize_and_expand(path) {
+                Ok(path) => path,
+                Err(err) => {
+                    println!("Could not expand given path: {}", err);
+                    exit(1)
+                }
+            };
 
-    let pwd = match current_dir() {
-        Ok(repo) => repo,
-        Err(_) => {
-            println!("Could not get working directory.");
-            exit(1)
+            if path.exists() {
+                path
+            } else {
+                println!("Path does not exist {}", path.display());
+                exit(1);
+            }
+        },
+        None => {
+            match current_dir() {
+                Ok(repo) => repo.absolutize().unwrap().into_owned(),
+                Err(_) => {
+                    println!("Could not get working directory.");
+                    exit(1)
+                }
+            }
         }
     };
 
-    let repo = match Repository::open(pwd.as_path()) {
+    let repo = match Repository::open(&git_path) {
         Ok(repo) => repo,
         Err(_) => {
             println!("Could not get git information.");
