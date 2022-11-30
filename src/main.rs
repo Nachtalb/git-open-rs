@@ -5,6 +5,7 @@ use std::fs::File;
 use git_url_parse::normalize_url;
 use clap::Parser;
 use path_absolutize::{self, Absolutize};
+use clap_verbosity_flag::{self, WarnLevel};
 
 use git2::{Repository, Remote, Error};
 use log::{info, warn, error, debug};
@@ -23,8 +24,8 @@ struct Args {
     #[arg(short, long, required = false, help = "Path of the git repository")]
     path: Option<PathBuf>,
 
-    #[arg(short, long, required = false, action, help = "Suppress output")]
-    quiet: bool,
+    #[clap(flatten)]
+    verbose: clap_verbosity_flag::Verbosity<WarnLevel>,
 }
 
 fn absolutize_and_expand<P: AsRef<OsStr>>(path: P) -> Result<PathBuf, String>{
@@ -38,7 +39,9 @@ fn absolutize_and_expand<P: AsRef<OsStr>>(path: P) -> Result<PathBuf, String>{
 fn main() {
     let arguments = Args::parse();
 
-    stderrlog::new().module(module_path!()).quiet(arguments.quiet).verbosity(2).init().unwrap();
+    env_logger::Builder::new()
+        .filter_level(arguments.verbose.log_level_filter())
+        .init();
 
     let git_path = match arguments.path {
         Some(path) => {
