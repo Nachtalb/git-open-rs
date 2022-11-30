@@ -9,6 +9,9 @@ use git2::{Repository, Remote};
 
 #[derive(Parser, Debug)]
 struct Args {
+    #[arg(required = false, help = "Which remote to open")]
+    remote: Option<String>,
+
     #[arg(short, long, required = false, help = "Commit hash")]
     commit: Option<String>,
 
@@ -65,23 +68,31 @@ fn main() {
         }
     };
 
-    let remote = match repo.remotes() {
-        Ok(remotes) if !remotes.is_empty() => repo.find_remote(remotes.get(0).unwrap()).unwrap(),
-        Ok(_) => {
-            println!("No remotes defined in repository");
-            exit(1)
-        }
-        Err(err) => {
-            println!("Could not read remote information: {err}");
-            exit(1)
+    let remote = match arguments.remote {
+        Some(name) => match repo.find_remote(&name) {
+            Ok(remote) => remote,
+            Err(_) => {
+                println!("Could not find remote named: {}", name);
+                exit(1)
+            },
         },
+        None => match repo.find_remote("origin") {
+            Ok(remote) => remote,
+            Err(_) => {
+                let remotes = repo.remotes().unwrap();
+                if remotes.is_empty() {
+                    println!("No remotes defined in repository");
+                    exit(1)
+                }
+                repo.find_remote(remotes.get(0).unwrap()).unwrap()
+            }
+        }
     };
-
 
     match remote_to_url(&remote) {
         Ok(remote_url) => {
             match webbrowser::open(&remote_url) {
-                Ok(_) => println!("Opening url {remote_url}"),
+                Ok(_) => println!("Opening remote {} [{}] => {remote_url}", remote.name().unwrap(), remote.url().unwrap()),
                 Err(_) => println!("Could not open webbrowser. Here is the URL: {}", remote_url)
             };
         },
