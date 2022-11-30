@@ -14,3 +14,5 @@ git-url-parse = "0.4.4"
 clap = { version = "4.0.29", features = ["derive"] }
 path-absolutize = "3.0.14"
 shellexpand = "2.1.2"
+log = "0.4.17"
+stderrlog = "0.5.4"

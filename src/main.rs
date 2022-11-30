@@ -7,6 +7,7 @@ use clap::Parser;
 use path_absolutize::{self, Absolutize};
 
 use git2::{Repository, Remote, Error};
+use log::{info, warn, error, debug};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -21,6 +22,9 @@ struct Args {
 
     #[arg(short, long, required = false, help = "Path of the git repository")]
     path: Option<PathBuf>,
+
+    #[arg(short, long, required = false, action, help = "Suppress output")]
+    quiet: bool,
 }
 
 fn absolutize_and_expand<P: AsRef<OsStr>>(path: P) -> Result<PathBuf, String>{
@@ -33,12 +37,15 @@ fn absolutize_and_expand<P: AsRef<OsStr>>(path: P) -> Result<PathBuf, String>{
 
 fn main() {
     let arguments = Args::parse();
+
+    stderrlog::new().module(module_path!()).quiet(arguments.quiet).verbosity(2).init().unwrap();
+
     let git_path = match arguments.path {
         Some(path) => {
             let path: PathBuf = match absolutize_and_expand(path) {
                 Ok(path) => path,
                 Err(err) => {
-                    println!("Could not expand given path: {}", err);
+                    error!("Could not expand given path: {}", err);
                     exit(1)
                 }
             };
@@ -46,7 +53,7 @@ fn main() {
             if path.exists() {
                 path
             } else {
-                println!("Path does not exist {}", path.display());
+                error!("Path does not exist {}", path.display());
                 exit(1);
             }
         },
@@ -54,7 +61,7 @@ fn main() {
             match current_dir() {
                 Ok(repo) => repo.absolutize().unwrap().into_owned(),
                 Err(_) => {
-                    println!("Could not get working directory.");
+                    error!("Could not get working directory.");
                     exit(1)
                 }
             }
@@ -64,7 +71,7 @@ fn main() {
     let repo = match Repository::open(&git_path) {
         Ok(repo) => repo,
         Err(_) => {
-            println!("{} is not a git repository", git_path.display());
+            error!("{} is not a git repository", git_path.display());
             exit(1)
         }
     };
@@ -73,7 +80,7 @@ fn main() {
         Some(name) => match repo.find_remote(&name) {
             Ok(remote) => remote,
             Err(_) => {
-                println!("Could not find remote named: {}", name);
+                error!("Could not find remote named: {}", name);
                 exit(1)
             },
         },
@@ -82,7 +89,7 @@ fn main() {
             Err(_) => {
                 let remotes = repo.remotes().unwrap();
                 if remotes.is_empty() {
-                    println!("No remotes defined in repository");
+                    error!("No remotes defined in repository");
                     exit(1)
                 }
                 repo.find_remote(remotes.get(0).unwrap()).unwrap()
@@ -94,12 +101,12 @@ fn main() {
         Ok(remote_url) => {
             let remote_url = connect_url_segments(remote_url, &repo, arguments.no_branch, arguments.commit);
             match webbrowser::open(&remote_url) {
-                Ok(_) => println!("Opening remote {} [{}] => {remote_url}", remote.name().unwrap(), remote.url().unwrap()),
-                Err(_) => println!("Could not open webbrowser. Here is the URL: {}", remote_url)
+                Ok(_) => info!("Opening remote {} [{}] => {remote_url}", remote.name().unwrap(), remote.url().unwrap()),
+                Err(_) => error!("Could not open webbrowser. Here is the URL: {}", remote_url)
             };
         },
         Err(err) => {
-            println!("{}: {}", err, remote.url().unwrap().to_string());
+            error!("{}: {}", err, remote.url().unwrap().to_string());
             exit(1)
         }
     };
@@ -157,6 +164,7 @@ fn connect_url_segments(mut base: Url, repository: &Repository, no_branch: bool,
 fn resolve_ssh_host(host: String) -> String {
     let config_path = match absolutize_and_expand("~/.ssh/config") {
         Ok(path) if !path.exists() => {
+            info!("{}", path.display());
             match absolutize_and_expand("/etc/ssh/ssh_config") {
                 Ok(path) if !path.exists() => return host,
                 Ok(path) => path,
@@ -171,7 +179,7 @@ fn resolve_ssh_host(host: String) -> String {
     let mut reader = match File::open(&config_path) {
         Ok(file) => BufReader::new(file),
         Err(err) => {
-            println!("Could not read ssh config file at {}: {}", config_path.display(), err);
+            warn!("Could not read ssh config file at {}, host might not be resolved correctly: {}", config_path.display(), err);
             return host
         }
     };
@@ -179,13 +187,16 @@ fn resolve_ssh_host(host: String) -> String {
     let config = match SshConfig::default().parse(&mut reader) {
         Ok(config) => config,
         Err(err) => {
-            println!("Could not parse config file at {}: {}", config_path.display(), err);
+            warn!("Could not parse config file at {}, host might not be resolved correctly: {}", config_path.display(), err);
             return host
         },
     };
 
     match config.query(&host).host_name {
-        Some(custom_host) => custom_host.to_string(),
+        Some(custom_host) => {
+            debug!("SSH hostname resolved through ssh config {} from {} to {}", config_path.display(), host, custom_host);
+            custom_host.to_string()
+        },
         None => host,
     }
 }
