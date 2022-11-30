@@ -24,7 +24,7 @@ struct Args {
 }
 
 fn absolutize_and_expand<P: AsRef<OsStr>>(path: P) -> Result<PathBuf, String>{
-    let path = match shellexpand::env(path.as_ref().to_str().unwrap()) {
+    let path = match shellexpand::full(path.as_ref().to_str().unwrap()) {
         Ok(path) => path.into_owned(),
         Err(err) => return Err(format!("{}", err)),
     };
