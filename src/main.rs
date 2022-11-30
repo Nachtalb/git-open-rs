@@ -1,11 +1,26 @@
-use std::{env::current_dir, process::exit, io::BufReader, path::Path};
+use std::{env::current_dir, process::exit, io::BufReader, path::{Path, PathBuf}};
 use ssh2_config::SshConfig;
 use std::fs::File;
 use git_url_parse::normalize_url;
+use clap::Parser;
 
 use git2::{Repository, Remote};
 
+#[derive(Parser)]
+struct Args {
+    #[arg(short, long, required = false, help = "Commit hash")]
+    commit: Option<String>,
+
+    #[arg(short, long, action, help = "Don't open current branch")]
+    no_branch: bool,
+
+    #[arg(short, long, required = false, help = "Path of the git repository")]
+    path: PathBuf,
+}
+
 fn main() {
+    let arguments = Args::parse();
+
     let pwd = match current_dir() {
         Ok(repo) => repo,
         Err(_) => {
