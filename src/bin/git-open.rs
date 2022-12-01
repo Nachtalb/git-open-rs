@@ -257,7 +257,7 @@ fn remote_to_url(remote: &Remote) -> Result<Url, String> {
             if path.ends_with(".git") {
                 path = &path[..path.len() - 4]
             }
-            Ok(Url::parse(format!("https://{}{}/{}", credentials, host, path).as_str()).unwrap())
+            Ok(Url::parse(format!("https://{}{}{}", credentials, host, path).as_str()).unwrap())
         }
         Ok(_) => return Err(String::from("Protocol not supported")),
         Err(_) => format_error,
