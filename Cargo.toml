@@ -2,6 +2,12 @@
 name = "git-open-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["Nachtab <na@nachtalb.io>"]
+keywords = ["git", "git-open", "cli"]
+license = "GPL-3.0"
+readme = "README.md"
+repository = "https://github.com/Nachtalb/git-open-rs"
+description = "Open your git repository in the browser with a simple command"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
