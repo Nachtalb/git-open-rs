@@ -1,6 +1,6 @@
 [package]
 name = "git-open-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Nachtab <na@nachtalb.io>"]
 keywords = ["git", "git-open", "cli"]
@@ -22,4 +22,4 @@ path-absolutize = "3.0.14"
 shellexpand = "2.1.2"
 ssh2-config = "0.1.3"
 url = "2.3.1"
-webbrowser = "0.8.2"
+webbrowser = "0.8.7"
